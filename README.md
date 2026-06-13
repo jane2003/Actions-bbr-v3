@@ -197,6 +197,7 @@ net.ipv4.tcp_slow_start_after_idle = 0
 
 - 自动启用 `bbr` 拥塞控制和 `fq` 队列算法。
 - 根据上传带宽和地区模式映射推荐 TCP buffer 档位。
+- 用户手动选择亚太、美欧或手动 RTT，不再按测速 RTT 自动判断。
 - 亚太线路使用较保守的 buffer，美欧高延迟线路使用更大 buffer。
 - 按机器内存设置 TCP buffer 上限，避免小内存 VPS 过度放大缓冲区。
 - 同步写入 `net.core.rmem_max` / `net.core.wmem_max` / `tcp_rmem` / `tcp_wmem`。
@@ -206,10 +207,9 @@ net.ipv4.tcp_slow_start_after_idle = 0
 
 | 模式 | RTT 参考 |
 | --- | --- |
-| 自动判断 | 使用 Speedtest Ping 自动分类 |
 | 亚太线路 | 通常小于 `100ms` |
 | 美欧线路 | 通常 `150-300ms` |
-| 手动 RTT | 按用户输入计算 |
+| 手动 RTT | 按用户输入 RTT，并手动选择亚太或美欧 buffer 档位 |
 
 配置同样写入：
 

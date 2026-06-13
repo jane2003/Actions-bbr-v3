@@ -298,71 +298,60 @@ read_positive_value() {
 
 # 函数：选择地区/RTT 模式
 select_tuning_rtt() {
-    local measured_ping="$1"
     local choice=""
-    local default_rtt=""
+    local buffer_choice=""
 
-    echo -e "\033[36m请选择线路模式：\033[0m"
-    echo -e "\033[33m 1. 自动判断（按 Speedtest RTT）\033[0m"
-    echo -e "\033[33m 2. 亚太线路（RTT < 100ms）\033[0m"
-    echo -e "\033[33m 3. 美欧线路（RTT 150-300ms）\033[0m"
-    echo -e "\033[33m 4. 手动输入 RTT\033[0m"
-    echo -n -e "\033[36m请选择 (1-4，默认 1): \033[0m"
-    read -r choice
-    choice="${choice:-1}"
+    while true; do
+        echo -e "\033[36m请选择线路模式：\033[0m"
+        echo -e "\033[33m 1. 亚太线路（RTT < 100ms）\033[0m"
+        echo -e "\033[33m 2. 美欧线路（RTT 150-300ms）\033[0m"
+        echo -e "\033[33m 3. 手动输入 RTT\033[0m"
+        echo -n -e "\033[36m请选择 (1-3): \033[0m"
+        read -r choice
 
-    case "$choice" in
-        1)
-            if is_positive_number "$measured_ping"; then
-                SMART_RTT_MS="$measured_ping"
-                if awk -v rtt="$SMART_RTT_MS" 'BEGIN { exit !(rtt < 100) }'; then
-                    SMART_REGION="亚太"
-                    SMART_REGION_CODE="asia"
-                elif awk -v rtt="$SMART_RTT_MS" 'BEGIN { exit !(rtt <= 300) }'; then
-                    SMART_REGION="美欧"
-                    SMART_REGION_CODE="overseas"
-                else
-                    SMART_REGION="高延迟"
-                    SMART_REGION_CODE="overseas"
-                fi
-            else
-                SMART_REGION="手动"
+        case "$choice" in
+            1)
+                SMART_REGION="亚太"
                 SMART_REGION_CODE="asia"
                 SMART_RTT_MS=$(read_positive_value "\033[36m请输入实际 RTT(ms，默认 80): \033[0m" "80")
-            fi
-            ;;
-        2)
-            SMART_REGION="亚太"
-            SMART_REGION_CODE="asia"
-            default_rtt="80"
-            if is_positive_number "$measured_ping"; then
-                default_rtt="$measured_ping"
-            fi
-            SMART_RTT_MS=$(read_positive_value "\033[36m请输入实际 RTT(ms，默认 ${default_rtt}): \033[0m" "$default_rtt")
-            ;;
-        3)
-            SMART_REGION="美欧"
-            SMART_REGION_CODE="overseas"
-            default_rtt="220"
-            if is_positive_number "$measured_ping"; then
-                default_rtt="$measured_ping"
-            fi
-            SMART_RTT_MS=$(read_positive_value "\033[36m请输入实际 RTT(ms，默认 ${default_rtt}): \033[0m" "$default_rtt")
-            ;;
-        4)
-            SMART_REGION="手动"
-            SMART_RTT_MS=$(read_positive_value "\033[36m请输入实际 RTT(ms，默认 100): \033[0m" "100")
-            if awk -v rtt="$SMART_RTT_MS" 'BEGIN { exit !(rtt < 120) }'; then
-                SMART_REGION_CODE="asia"
-            else
+                return 0
+                ;;
+            2)
+                SMART_REGION="美欧"
                 SMART_REGION_CODE="overseas"
-            fi
-            ;;
-        *)
-            echo -e "\033[31m输入无效，使用自动判断。\033[0m"
-            select_tuning_rtt "$measured_ping"
-            ;;
-    esac
+                SMART_RTT_MS=$(read_positive_value "\033[36m请输入实际 RTT(ms，默认 220): \033[0m" "220")
+                return 0
+                ;;
+            3)
+                SMART_RTT_MS=$(read_positive_value "\033[36m请输入实际 RTT(ms，默认 100): \033[0m" "100")
+                while true; do
+                    echo -e "\033[36m请选择 buffer 档位模式：\033[0m"
+                    echo -e "\033[33m 1. 亚太档位\033[0m"
+                    echo -e "\033[33m 2. 美欧档位\033[0m"
+                    echo -n -e "\033[36m请选择 (1-2): \033[0m"
+                    read -r buffer_choice
+                    case "$buffer_choice" in
+                        1)
+                            SMART_REGION="手动 RTT / 亚太档"
+                            SMART_REGION_CODE="asia"
+                            return 0
+                            ;;
+                        2)
+                            SMART_REGION="手动 RTT / 美欧档"
+                            SMART_REGION_CODE="overseas"
+                            return 0
+                            ;;
+                        *)
+                            echo -e "\033[31m请输入 1 或 2 选择 buffer 档位。\033[0m"
+                            ;;
+                    esac
+                done
+                ;;
+            *)
+                echo -e "\033[31m请输入 1、2 或 3 选择线路模式。\033[0m"
+                ;;
+        esac
+    done
 }
 
 # 函数：应用 BBR v3 智能带宽优化
@@ -402,7 +391,7 @@ apply_smart_bandwidth_tuning() {
         download_mbps="$upload_mbps"
     fi
 
-    select_tuning_rtt "$SPEEDTEST_PING"
+    select_tuning_rtt
 
     cap_mb=$(get_tcp_buffer_cap_mb)
     buffer_mb=$(calculate_smart_buffer_mb "$upload_mbps" "$SMART_REGION_CODE" "$cap_mb")
